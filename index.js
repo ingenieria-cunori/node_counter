@@ -1,12 +1,29 @@
 import express from 'express';
 import { createClient } from 'redis';
-const app = express();
-const client = createClient({ host: 'redis-db' });
+import cors from 'cors'; 
 
-app.get('/', (req, res) => {
-    client.incr('visitas', (err, visitas) => {
-        res.send(`Hola! Esta página ha sido visitada ${visitas} veces.`);
-    });
+const app = express();
+app.use(cors()); 
+
+const client = createClient({
+    url: 'redis://db:6379' //<-- Cambia 'db' por el nombre del servicio que haz definido en el docker-compose
 });
 
-app.listen(3000, () => console.log('Server ready on port 3000'));
+client.on('error', (err) => console.log('Redis Client Error', err));
+client.connect();
+
+app.get('/', async (req, res) => {
+    try {
+        const visitas = await client.incr('visitas');
+        res.json({ 
+            mensaje: "¡Hola desde el Backend!",
+            contador: visitas 
+        });
+    } catch (err) {
+        res.status(500).send("Error en la base de datos");
+    }
+});
+
+app.listen(3000, () => {
+    console.log('Backend escuchando en puerto 3000');
+});
